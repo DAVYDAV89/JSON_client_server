@@ -49,6 +49,13 @@ MainWindow::MainWindow(QWidget *parent)
         close();
     });
 
+    m_Socket = new QTcpSocket(this);
+    m_Socket->connectToHost("127.0.0.1", 9999);
+
+    connect(m_Socket, &QTcpSocket::disconnected, m_Socket, &QTcpSocket::deleteLater);
+    connect(m_Socket, &QTcpSocket::readyRead, this, &MainWindow::slot_ready );
+
+
     foreach(const QJsonValue &val, readJSfile()) {
         loadData(val);
     }
@@ -169,46 +176,52 @@ void MainWindow::slot_on_filtrContact(const QString & _filtr)
 
 void MainWindow::slotSaveContactInJS()
 {
-    QFile file("phoneBook.json");
-    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QModelIndex _index;
-        QVariantMap _map;
-        QJsonDocument doc;
+    QModelIndex _index;
+    QVariantMap _map;
+    QJsonDocument doc;
+    QString jsonString;
 
-        QTextStream stream( &file );
-        stream << "{\n";
-        stream << "\"book\":[";
+//    stream << quint64(0);
+    jsonString += "{\n";
+    jsonString += "\"book\":[";
 
-        for (int row = 0; row < m_table -> rowCount(QModelIndex()); ++row ) {
-            if (ui->tableView -> isRowHidden(row))
-                continue;
+    for (int row = 0; row < m_table -> rowCount(QModelIndex()); ++row ) {
+        if (ui->tableView -> isRowHidden(row))
+            continue;
 
-            for (int col = 0; col < m_table -> columnCount(QModelIndex()); ++col ) {
-                _index = m_table -> index(row, col, QModelIndex());
-                switch (col) {
-                case 0:
-                    _map.insert("family", _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString() );
-                    break;
-                case 1:
-                    _map.insert("firstName", _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString() );
-                    break;
-                case 2:
-                    _map.insert("secondName", _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString() );
-                    break;
-                case 3:
-                    _map.insert("phoneNumber", QJsonArray::fromStringList(QStringList(_index.model()->data(_index.model()->index(_index.row(),_index.column())).toString().split(",\n"))));
-                    break;
-                }
+        for (int col = 0; col < m_table -> columnCount(QModelIndex()); ++col ) {
+            _index = m_table -> index(row, col, QModelIndex());
+            switch (col) {
+            case 0:
+                _map.insert("family", _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString() );
+                break;
+            case 1:
+                _map.insert("firstName", _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString() );
+                break;
+            case 2:
+                _map.insert("secondName", _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString() );
+                break;
+            case 3:
+                _map.insert("phoneNumber", QJsonArray::fromStringList(QStringList(_index.model()->data(_index.model()->index(_index.row(),_index.column())).toString().split(",\n"))));
+                break;
             }
-            QJsonDocument doc(QJsonObject::fromVariantMap(_map));
-            QString jsonString = doc.toJson(QJsonDocument::Indented);
-
-            stream << jsonString;
-            if (row != m_table -> rowCount(QModelIndex()) - 1 )
-                stream << ",";
         }
-        stream << "]\n";
-        stream << "}";
-        file.close();
+        QJsonDocument doc(QJsonObject::fromVariantMap(_map));
+        jsonString += doc.toJson(QJsonDocument::Indented);
+
+        if (row != m_table -> rowCount(QModelIndex()) - 1 )
+            jsonString += ",";
     }
+    jsonString += "]\n";
+    jsonString += "}";
+
+//    qDebug() << jsonString;
+
+
+    qDebug() << m_Socket->write(jsonString.toLocal8Bit());
+}
+
+void MainWindow::slot_ready()
+{
+
 }
