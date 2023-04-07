@@ -33,35 +33,32 @@ void Server::incomingConnection(qintptr socketDescriptor)
 
     m_Sockets.push_back(m_socket);
     qDebug() << "client connected " << socketDescriptor;
+    sendToClient();
 }
 
 void Server::slotReadyRead()
 {
     m_socket = static_cast<QTcpSocket*>(sender());
 
-    QByteArray _data;
-    _data = m_socket -> readAll();
+    QFile file("phoneBook.json");
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QVariantMap _map;
+        QJsonDocument doc;
 
-    QJsonDocument doc = QJsonDocument::fromJson(_data);
-    QJsonObject json = doc.object();
-    QJsonArray jarr = json["book"].toArray();
-
-    foreach(const QJsonValue &val, jarr) {
-        qDebug() << val["family"].toString();
-        qDebug() << val["firstName"].toString();
-        qDebug() << val["secondName"].toString();
-
-        QString _lstNumber;
-        foreach(const auto &number, val["phoneNumber"].toArray()) {
-            _lstNumber.push_front(number.toString() + ",\n");
-        }
-
-        qDebug() << _lstNumber;
+        QTextStream stream( &file );
+        stream << m_socket -> readAll();
+        file.close();
     }
+    sendToClient();
 }
 
-void Server::sendToClient(QString _mess, const QByteArray &_ba)
+void Server::sendToClient()
 {
-
-
+    QString strJS;
+    QFile file("phoneBook.json");
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
+        strJS = file.readAll();
+        file.close();
+    }
+    m_socket->write(strJS.toLocal8Bit());
 }

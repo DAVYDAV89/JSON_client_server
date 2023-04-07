@@ -7,13 +7,9 @@
 #include <QBuffer>
 
 
-class Server
-        : public QTcpServer
+class Server : public QTcpServer
 {
     Q_OBJECT
-
-    QTcpSocket              *m_socket;
-    QVector<QTcpSocket*>    m_Sockets;    
 
 public:
     Server();
@@ -21,8 +17,14 @@ public:
 
 protected:
     void incomingConnection(qintptr);
+
 private:
-    void sendToClient(QString _mess, const QByteArray &_ba);
+
+    QTcpSocket              *m_socket;
+    QVector<QTcpSocket*>    m_Sockets;
+
+    void sendToClient();
+
 private slots:
     void slotReadyRead();
 };

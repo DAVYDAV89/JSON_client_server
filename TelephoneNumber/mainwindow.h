@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QJsonArray>
 #include <QTcpSocket>
 
 #include "mymodeltable.h"
@@ -22,19 +23,19 @@ private:
     Ui::MainWindow *ui;
     MyModelTable *m_table;
 
-    QTcpSocket *m_Socket;
+    QTcpSocket *m_socket;
+    QJsonArray m_jarrBuf;
 
-
-    QJsonArray readJSfile();
     void clearTable();
     void loadData(const QJsonValue &val);
 
 private slots:
+    void slot_read();
+
     void slotAddContact();
     void slotRemoveContact();
     void slot_on_filtrContact(const QString &);
     void slotSaveContactInJS();
 
-    void slot_ready();
 };
 #endif // MAINWINDOW_H

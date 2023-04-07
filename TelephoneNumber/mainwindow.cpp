@@ -5,7 +5,7 @@
 #include <QFile>
 #include <QJsonObject>
 #include <QJsonDocument>
-#include <QJsonArray>
+
 #include <QDateTime>
 #include <QDebug>
 
@@ -49,16 +49,11 @@ MainWindow::MainWindow(QWidget *parent)
         close();
     });
 
-    m_Socket = new QTcpSocket(this);
-    m_Socket->connectToHost("127.0.0.1", 9999);
+    m_socket = new QTcpSocket(this);
+    m_socket->connectToHost("127.0.0.1", 9999);
 
-    connect(m_Socket, &QTcpSocket::disconnected, m_Socket, &QTcpSocket::deleteLater);
-    connect(m_Socket, &QTcpSocket::readyRead, this, &MainWindow::slot_ready );
-
-
-    foreach(const QJsonValue &val, readJSfile()) {
-        loadData(val);
-    }
+    connect(m_socket, &QTcpSocket::disconnected, m_socket, &QTcpSocket::deleteLater);
+    connect(m_socket, &QTcpSocket::readyRead, this, &MainWindow::slot_read );
 
     ui->tableView->resizeColumnsToContents();
 }
@@ -66,6 +61,23 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+
+void MainWindow::slot_read()
+{
+    clearTable();
+
+    QByteArray _data;
+    _data = m_socket -> readAll();
+
+    QJsonDocument doc = QJsonDocument::fromJson(_data);
+    QJsonObject json = doc.object();
+    m_jarrBuf = json["book"].toArray();
+
+    foreach(const QJsonValue &val, m_jarrBuf) {
+        loadData(val);
+    }
 }
 
 void MainWindow::slotAddContact()
@@ -95,22 +107,6 @@ void MainWindow::slotRemoveContact()
         return;
 
     m_table -> removeRows(ui->tableView -> selectionModel()->selectedRows().at(0).row(), selectedRows);
-}
-
-QJsonArray MainWindow::readJSfile()
-{
-    QString strJS;
-    QFile file("phoneBook.json");
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)){
-        strJS = file.readAll();
-        file.close();
-    }
-
-    QJsonDocument doc = QJsonDocument::fromJson(strJS.toUtf8());
-    QJsonObject json = doc.object();
-    QJsonArray jarr = json["book"].toArray();
-
-    return jarr;
 }
 
 void MainWindow::clearTable()
@@ -153,7 +149,7 @@ void MainWindow::slot_on_filtrContact(const QString & _filtr)
 {
     clearTable();
 
-    foreach(const QJsonValue &val, readJSfile()) {
+    foreach(const QJsonValue &val, m_jarrBuf) {
         if (_filtr.isEmpty()) {
             loadData(val);
         }
@@ -178,12 +174,10 @@ void MainWindow::slotSaveContactInJS()
 {
     QModelIndex _index;
     QVariantMap _map;
-    QJsonDocument doc;
-    QString jsonString;
+    QString _jsonString;
 
-//    stream << quint64(0);
-    jsonString += "{\n";
-    jsonString += "\"book\":[";
+    _jsonString += "{\n";
+    _jsonString += "\"book\":[";
 
     for (int row = 0; row < m_table -> rowCount(QModelIndex()); ++row ) {
         if (ui->tableView -> isRowHidden(row))
@@ -207,21 +201,14 @@ void MainWindow::slotSaveContactInJS()
             }
         }
         QJsonDocument doc(QJsonObject::fromVariantMap(_map));
-        jsonString += doc.toJson(QJsonDocument::Indented);
+        _jsonString += doc.toJson(QJsonDocument::Indented);
 
         if (row != m_table -> rowCount(QModelIndex()) - 1 )
-            jsonString += ",";
+            _jsonString += ",";
     }
-    jsonString += "]\n";
-    jsonString += "}";
+    _jsonString += "]\n";
+    _jsonString += "}";
 
 //    qDebug() << jsonString;
-
-
-    qDebug() << m_Socket->write(jsonString.toLocal8Bit());
-}
-
-void MainWindow::slot_ready()
-{
-
+    m_socket->write(_jsonString.toLocal8Bit());
 }
