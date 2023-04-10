@@ -6,7 +6,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 
-#include <QDateTime>
+#include <QMessageBox>
 #include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -61,8 +61,8 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+    delete m_socket;
 }
-
 
 void MainWindow::slot_read()
 {
@@ -71,13 +71,20 @@ void MainWindow::slot_read()
     QByteArray _data;
     _data = m_socket -> readAll();
 
-    QJsonDocument doc = QJsonDocument::fromJson(_data);
-    QJsonObject json = doc.object();
-    m_jarrBuf = json["book"].toArray();
+    QJsonDocument doc = QJsonDocument::fromJson(_data, &m_docError);
 
-    foreach(const QJsonValue &val, m_jarrBuf) {
-        loadData(val);
+    if (m_docError.errorString().toInt() == QJsonParseError::NoError) {
+        QJsonObject json = doc.object();
+        m_jarrBuf = json["book"].toArray();
+
+        foreach(const QJsonValue &val, m_jarrBuf) {
+            loadData(val);
+        }
     }
+    else {
+        QMessageBox::information( this, "information", m_docError.errorString() );
+    }
+
 }
 
 void MainWindow::slotAddContact()

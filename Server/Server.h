@@ -19,14 +19,13 @@ protected:
     void incomingConnection(qintptr);
 
 private:
-
-    QTcpSocket              *m_socket;
     QVector<QTcpSocket*>    m_Sockets;
 
     void sendToClient();
 
 private slots:
     void slotReadyRead();
+    void slotCloseConnection();
 };
 
 #endif // SERVER_H

@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QJsonParseError>
 #include <QJsonArray>
 #include <QTcpSocket>
 
@@ -20,11 +21,12 @@ public:
     ~MainWindow();
 
 private:
-    Ui::MainWindow *ui;
-    MyModelTable *m_table;
+    Ui::MainWindow  *ui;
+    MyModelTable    *m_table;
 
-    QTcpSocket *m_socket;
-    QJsonArray m_jarrBuf;
+    QTcpSocket      *m_socket;
+    QJsonArray      m_jarrBuf;
+    QJsonParseError m_docError;
 
     void clearTable();
     void loadData(const QJsonValue &val);
@@ -36,6 +38,5 @@ private slots:
     void slotRemoveContact();
     void slot_on_filtrContact(const QString &);
     void slotSaveContactInJS();
-
 };
 #endif // MAINWINDOW_H

@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QDebug>
+#include <algorithm>
 
 Server::Server()
 {
@@ -21,32 +22,33 @@ Server::Server()
 
 Server::~Server()
 {
+    for (const auto &el : m_Sockets )
+        el->close();
+
+    m_Sockets.clear();
 }
 
 void Server::incomingConnection(qintptr socketDescriptor)
 {
-    m_socket = new QTcpSocket;
-    m_socket -> setSocketDescriptor(socketDescriptor);
+    QTcpSocket* _socket = new QTcpSocket;
+    _socket -> setSocketDescriptor(socketDescriptor);
 
-    connect(m_socket, &QTcpSocket::readyRead, this, &Server::slotReadyRead);
-    connect(m_socket, &QTcpSocket::disconnected, m_socket, &Server::deleteLater);
+    connect(_socket, &QTcpSocket::readyRead, this, &Server::slotReadyRead);
+    connect(_socket, &QTcpSocket::disconnected, this, &Server::slotCloseConnection);
 
-    m_Sockets.push_back(m_socket);
+    m_Sockets.push_back(_socket);
     qDebug() << "client connected " << socketDescriptor;
     sendToClient();
 }
 
 void Server::slotReadyRead()
 {
-    m_socket = static_cast<QTcpSocket*>(sender());
+    QTcpSocket* _socket = static_cast<QTcpSocket*>(sender());
 
     QFile file("phoneBook.json");
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QVariantMap _map;
-        QJsonDocument doc;
-
         QTextStream stream( &file );
-        stream << m_socket -> readAll();
+        stream << _socket -> readAll();
         file.close();
     }
     sendToClient();
@@ -60,5 +62,13 @@ void Server::sendToClient()
         strJS = file.readAll();
         file.close();
     }
-    m_socket->write(strJS.toLocal8Bit());
+
+    for (const auto &el : m_Sockets )
+        el->write(strJS.toLocal8Bit());
+}
+
+void Server::slotCloseConnection()
+{
+    QTcpSocket* _socket = static_cast<QTcpSocket*>(sender());
+    _socket->close();
 }
