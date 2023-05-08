@@ -84,7 +84,6 @@ void MainWindow::slot_read()
     else {
         QMessageBox::information( this, "information", m_docError.errorString() );
     }
-
 }
 
 void MainWindow::slotAddContact()
@@ -179,43 +178,60 @@ void MainWindow::slot_on_filtrContact(const QString & _filtr)
 
 void MainWindow::slotSaveContactInJS()
 {
-    QModelIndex _index;
-    QVariantMap _map;
-    QString _jsonString;
+    struct PhoneRecord {
+          QString     last_name;
+          QString     first_name;
+          QString     mid_name;
+          QStringList phones;
+      };
+      QList<PhoneRecord> records;
 
-    _jsonString += "{\n";
-    _jsonString += "\"book\":[";
+      QModelIndex _index;
+      for (int row = 0; row < m_table -> rowCount(QModelIndex()); ++row) {
+          if (ui->tableView -> isRowHidden(row))
+              continue;
 
-    for (int row = 0; row < m_table -> rowCount(QModelIndex()); ++row ) {
-        if (ui->tableView -> isRowHidden(row))
-            continue;
+          PhoneRecord record;
+          for (int col = 0; col < m_table -> columnCount(QModelIndex()); ++col) {
+              _index = m_table -> index(row, col, QModelIndex());
+              switch (col)
+              {
+              case 0:
+                  record.last_name = _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString();
+                  break;
+              case 1:
+                  record.first_name = _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString();
+                  break;
+              case 2:
+                  record.mid_name = _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString();
+                  break;
+              case 3:
+                  record.phones = QStringList(_index.model()->data(_index.model()->index(_index.row(),_index.column())).toString().split(",\n"));
+                  break;
+              }
+          }
+          records.append(record);
+      }
 
-        for (int col = 0; col < m_table -> columnCount(QModelIndex()); ++col ) {
-            _index = m_table -> index(row, col, QModelIndex());
-            switch (col) {
-            case 0:
-                _map.insert("family", _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString() );
-                break;
-            case 1:
-                _map.insert("firstName", _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString() );
-                break;
-            case 2:
-                _map.insert("secondName", _index.model()->data(_index.model()->index(_index.row(),_index.column())).toString() );
-                break;
-            case 3:
-                _map.insert("phoneNumber", QJsonArray::fromStringList(QStringList(_index.model()->data(_index.model()->index(_index.row(),_index.column())).toString().split(",\n"))));
-                break;
-            }
-        }
-        QJsonDocument doc(QJsonObject::fromVariantMap(_map));
-        _jsonString += doc.toJson(QJsonDocument::Indented);
+      QJsonArray phone_records;
+      for (const auto &kRecord : records) {
+          QJsonObject js_object;
+          js_object["family"] = kRecord.last_name;
+          js_object["firstName"] = kRecord.first_name;
+          js_object["secondName"] = kRecord.mid_name;
 
-        if (row != m_table -> rowCount(QModelIndex()) - 1 )
-            _jsonString += ",";
-    }
-    _jsonString += "]\n";
-    _jsonString += "}";
+          QJsonArray phone_numbers;
+          for (const auto &kNumber : kRecord.phones) {
+              phone_numbers.append(QJsonValue(kNumber));
+          }
+          js_object["phoneNumber"] = phone_numbers;
 
-//    qDebug() << jsonString;
-    m_socket->write(_jsonString.toLocal8Bit());
+          phone_records.append(js_object);
+      }
+
+      QJsonObject book;
+      book["book"] = phone_records;
+      QJsonDocument save_doc(book);
+
+      m_socket->write(save_doc.toJson());
 }
